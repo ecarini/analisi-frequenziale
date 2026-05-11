@@ -1,275 +1,388 @@
-<!DOCTYPE html>
-<html lang="it">
-<head>
-<meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Analisi frequenziale del parlato</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',sans-serif;padding:24px 16px;min-height:100vh}
-.wrap{max-width:860px;margin:0 auto}
-h1{font-size:20px;font-weight:700;color:#f1f5f9;margin-bottom:4px}
-.sub{color:#64748b;font-size:13px;margin-bottom:24px}
-.tabs{display:flex;gap:8px;margin-bottom:24px;flex-wrap:wrap}
-.tab{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:#1e293b;color:#94a3b8;transition:.2s}
-.tab.active{background:#3b82f6;color:#fff}
-.panel{display:none}.panel.active{display:block}
-.card{background:#1e293b;border-radius:12px;padding:16px;margin-bottom:12px}
-.card-note{font-size:12px;color:#64748b;margin-bottom:12px;padding-left:4px}
-canvas{max-height:320px}
-.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
-.zone{background:#1e293b;border-radius:10px;padding:12px 14px}
-.zone-range{font-size:11px;font-weight:700;margin-bottom:3px}
-.zone-label{font-size:13px;font-weight:600;color:#f1f5f9;margin-bottom:3px}
-.zone-desc{font-size:12px;color:#94a3b8}
-.legend-box{background:#1e293b;border-radius:10px;padding:14px;border-left:3px solid #8b5cf6}
-.legend-title{color:#a78bfa;font-size:12px;font-weight:700;margin-bottom:8px}
-.legend-row{display:flex;gap:8px;align-items:flex-start;margin-bottom:4px}
-.dot{width:10px;height:10px;border-radius:2px;margin-top:2px;flex-shrink:0}
-.lng-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.lng-tab{padding:7px 13px;border-radius:8px;border:2px solid transparent;cursor:pointer;font-size:13px;font-weight:600;background:#1e293b;color:#94a3b8;transition:.2s}
-.detail-card{background:#1e293b;border-radius:12px;padding:18px}
-.detail-row{display:flex;gap:12px;padding-bottom:8px;border-bottom:1px solid #334155;margin-bottom:8px}
-.detail-key{color:#64748b;font-size:12px;font-weight:600;min-width:160px;flex-shrink:0}
-.detail-val{color:#cbd5e1;font-size:12px}
-.note-box{margin-top:14px;padding:10px 12px;border-radius:8px}
-.note-title{font-size:12px;font-weight:700;margin-bottom:4px}
-.note-text{color:#cbd5e1;font-size:12px}
-.tbl{width:100%;border-collapse:collapse;font-size:12px}
-.tbl th{color:#64748b;text-align:left;padding:6px 10px;border-bottom:1px solid #334155}
-.tbl td{padding:7px 10px;border-bottom:1px solid #0f172a}
-.imp-section{background:#1e293b;border-radius:12px;padding:16px;margin-bottom:12px}
-.imp-title{color:#f1f5f9;font-weight:700;font-size:13px;margin-bottom:12px}
-.imp-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:6px}
-.imp-lng{font-size:12px;font-weight:700;min-width:90px;flex-shrink:0}
-.imp-text{color:#94a3b8;font-size:12px}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <h1>Analisi frequenziale del parlato</h1>
-  <p class="sub">Confronto spettrale: Italiano · Friulano · Inglese · Sloveno</p>
+import { useState } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine } from "recharts";
 
-  <div class="tabs">
-    <button class="tab active" onclick="showTab(0)">📊 Spettro LTAS</button>
-    <button class="tab" onclick="showTab(1)">🔬 Profilo per lingua</button>
-    <button class="tab" onclick="showTab(2)">🦻 Impatto audiologico</button>
-  </div>
+// LTAS comparativo basato su dati fonetici:
+// Italiano/Inglese: Byrne et al. 1994 (NAL); 
+// Friulano: estrapolato da Heinemann & Melchior 2015, Finco 2009
+// Sloveno: Petek, Šuštaršič & Komar 1996; Jurgec 2006; Grokipedia Slovene phonology
+const data = [
+  { label: "125 Hz",  italiano: -28, friulano: -27, inglese: -30, sloveno: -26 },
+  { label: "250 Hz",  italiano: -18, friulano: -17, inglese: -20, sloveno: -17 },
+  { label: "500 Hz",  italiano: -8,  friulano: -9,  inglese: -10, sloveno: -9  },
+  { label: "1 kHz",   italiano: -12, friulano: -14, inglese: -13, sloveno: -13 },
+  { label: "1.5 kHz", italiano: -16, friulano: -17, inglese: -15, sloveno: -15 },
+  { label: "2 kHz",   italiano: -18, friulano: -20, inglese: -16, sloveno: -17 },
+  { label: "3 kHz",   italiano: -22, friulano: -24, inglese: -18, sloveno: -19 },
+  { label: "4 kHz",   italiano: -26, friulano: -27, inglese: -20, sloveno: -21 },
+  { label: "6 kHz",   italiano: -32, friulano: -30, inglese: -22, sloveno: -24 },
+  { label: "8 kHz",   italiano: -38, friulano: -35, inglese: -26, sloveno: -30 },
+];
 
-  <!-- TAB 0 -->
-  <div class="panel active" id="tab0">
-    <div class="card">
-      <p class="card-note">Long-Term Average Speech Spectrum (LTAS) — Livello relativo in dB (0 = picco ~500 Hz)</p>
-      <canvas id="ltasChart"></canvas>
-    </div>
-    <div class="grid2">
-      <div class="zone" style="border-left:3px solid #1d4ed8">
-        <div class="zone-range" style="color:#1d4ed8">125–500 Hz</div>
-        <div class="zone-label">Zona bassa</div>
-        <div class="zone-desc">Energia fondamentale, nasali, vocali posteriori /a o u/</div>
-      </div>
-      <div class="zone" style="border-left:3px solid #15803d">
-        <div class="zone-range" style="color:#15803d">500–2000 Hz</div>
-        <div class="zone-label">Zona media</div>
-        <div class="zone-desc">F1–F2, intelligibilità del parlato, vocali anteriori /e i/</div>
-      </div>
-      <div class="zone" style="border-left:3px solid #b45309">
-        <div class="zone-range" style="color:#b45309">2000–4000 Hz</div>
-        <div class="zone-label">Zona alta</div>
-        <div class="zone-desc">F3, /s ʃ/, affricate /tʃ/, chiarezza articolatoria</div>
-      </div>
-      <div class="zone" style="border-left:3px solid #b91c1c">
-        <div class="zone-range" style="color:#b91c1c">4000–8000 Hz</div>
-        <div class="zone-label">Zona acuta</div>
-        <div class="zone-desc">/f θ s/ acute, dettagli fricativi fini, discriminazione sibilanti</div>
-      </div>
-    </div>
-    <div class="legend-box">
-      <div class="legend-title">📌 Differenze chiave alle alte frequenze</div>
-      <div class="legend-row"><div class="dot" style="background:#3b82f6"></div><span style="color:#94a3b8;font-size:12px">Italiano: declino più rapido sopra 2 kHz — lingua 'vocalica'</span></div>
-      <div class="legend-row"><div class="dot" style="background:#16a34a"></div><span style="color:#94a3b8;font-size:12px">Friulano: più energia a 6–8 kHz rispetto all'italiano per fricative finali</span></div>
-      <div class="legend-row"><div class="dot" style="background:#ef4444"></div><span style="color:#94a3b8;font-size:12px">Inglese: curva più piatta sopra 2 kHz — ricco sistema fricativo</span></div>
-      <div class="legend-row"><div class="dot" style="background:#f59e0b"></div><span style="color:#94a3b8;font-size:12px">Sloveno: posizione intermedia — 4 sibilanti distinte</span></div>
-    </div>
-  </div>
-
-  <!-- TAB 1 -->
-  <div class="panel" id="tab1">
-    <div class="lng-tabs" id="lngTabs"></div>
-    <div id="lngDetail"></div>
-    <div class="card" style="margin-top:14px">
-      <p style="color:#94a3b8;font-size:13px;font-weight:700;margin-bottom:12px">📊 Inventario vocalico a confronto</p>
-      <div style="overflow-x:auto">
-        <table class="tbl">
-          <thead><tr>
-            <th>Lingua</th><th>N° vocali</th><th>Vocali lunghe</th><th>Schwa /ə/</th><th>Dittonghi</th><th>Riduzione vocalica</th>
-          </tr></thead>
-          <tbody>
-            <tr><td style="color:#3b82f6;font-weight:600">🇮🇹 Italiano</td><td style="color:#e2e8f0">5</td><td style="color:#e2e8f0">No</td><td style="color:#e2e8f0">No</td><td style="color:#e2e8f0">No</td><td style="color:#e2e8f0">No</td></tr>
-            <tr><td style="color:#16a34a;font-weight:600">🏔 Friulano</td><td style="color:#e2e8f0">7</td><td style="color:#e2e8f0">Sì</td><td style="color:#e2e8f0">No</td><td style="color:#e2e8f0">No</td><td style="color:#e2e8f0">Minima</td></tr>
-            <tr><td style="color:#ef4444;font-weight:600">🇬🇧 Inglese</td><td style="color:#e2e8f0">12–20</td><td style="color:#e2e8f0">Sì</td><td style="color:#e2e8f0">Sì</td><td style="color:#e2e8f0">Sì</td><td style="color:#e2e8f0">Forte</td></tr>
-            <tr><td style="color:#f59e0b;font-weight:600">🇸🇮 Sloveno</td><td style="color:#e2e8f0">8</td><td style="color:#e2e8f0">Sì*</td><td style="color:#e2e8f0">Sì</td><td style="color:#e2e8f0">No</td><td style="color:#e2e8f0">Moderata</td></tr>
-          </tbody>
-        </table>
-        <p style="color:#475569;font-size:11px;margin-top:8px">* La lunghezza in sloveno standard è determinata dallo stress più che essere fonologicamente contrastiva in tutte le posizioni</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- TAB 2 -->
-  <div class="panel" id="tab2">
-    <div class="imp-section" style="border-left:3px solid #3b82f6">
-      <div class="imp-title">Perdita basse frequenze (125–500 Hz)</div>
-      <div class="imp-row"><span class="imp-lng" style="color:#3b82f6">🇮🇹 Italiano</span><span class="imp-text">Perde energia fondamentale e vocali /a o u/ — impatto moderato, F2 spesso conservato</span></div>
-      <div class="imp-row"><span class="imp-lng" style="color:#16a34a">🏔 Friulano</span><span class="imp-text">Simile all'italiano; perde allungamento vocalico contrastivo</span></div>
-      <div class="imp-row"><span class="imp-lng" style="color:#ef4444">🇬🇧 Inglese</span><span class="imp-text">Colpisce ritmo accentuale; schwa e vocali ridotte ulteriormente compromesse</span></div>
-      <div class="imp-row"><span class="imp-lng" style="color:#f59e0b">🇸🇮 Sloveno</span><span class="imp-text">Perde energia fondamentale e schwa /ə/; impatto su vocali brevi non accentate</span></div>
-    </div>
-    <div class="imp-section" style="border-left:3px solid #f59e0b">
-      <div class="imp-title">Perdita medie frequenze (500–2000 Hz)</div>
-      <div class="imp-row"><span class="imp-lng" style="color:#3b82f6">🇮🇹 Italiano</span><span class="imp-text">Impatto elevato: zona critica. Sistema vocalico italiano qui concentrato.</span></div>
-      <div class="imp-row"><span class="imp-lng" style="color:#16a34a">🏔 Friulano</span><span class="imp-text">Impatto elevato: F1/F2 delle 7 vocali e geminate colpite</span></div>
-      <div class="imp-row"><span class="imp-lng" style="color:#ef4444">🇬🇧 Inglese</span><span class="imp-text">Impatto elevato: dittonghi e vowel reduction difficili da discriminare</span></div>
-      <div class="imp-row"><span class="imp-lng" style="color:#f59e0b">🇸🇮 Sloveno</span><span class="imp-text">Impatto molto elevato: le 8 vocali si distinguono principalmente in questa zona</span></div>
-    </div>
-    <div class="imp-section" style="border-left:3px solid #ef4444">
-      <div class="imp-title">Perdita alte frequenze (2000–8000 Hz)</div>
-      <div class="imp-row"><span class="imp-lng" style="color:#3b82f6">🇮🇹 Italiano</span><span class="imp-text">Impatto moderato: sopravvive bene fino a 2000 Hz — sistema vocalico robusto</span></div>
-      <div class="imp-row"><span class="imp-lng" style="color:#16a34a">🏔 Friulano</span><span class="imp-text">Impatto più rilevante che in italiano: fricative finali sorde /s ts/ colpite</span></div>
-      <div class="imp-row"><span class="imp-lng" style="color:#ef4444">🇬🇧 Inglese</span><span class="imp-text">Impatto critico: /s ʃ θ f/ inudibili — calo drastico dell'intelligibilità</span></div>
-      <div class="imp-row"><span class="imp-lng" style="color:#f59e0b">🇸🇮 Sloveno</span><span class="imp-text">Impatto molto rilevante: /s z ʃ ʒ tʃ dʒ/ tutti a rischio — simile all'inglese</span></div>
-    </div>
-    <div class="card" style="border-left:3px solid #8b5cf6">
-      <p style="color:#a78bfa;font-size:13px;font-weight:700;margin-bottom:10px">🎯 Implicazione clinica — Speech Intelligibility Index (SII)</p>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <div style="display:flex;gap:10px;align-items:flex-start;padding-bottom:8px;border-bottom:1px solid #334155"><span style="color:#3b82f6;font-size:12px;font-weight:700;min-width:80px">Italiano</span><span style="color:#94a3b8;font-size:12px">SII relativamente robusto fino a perdite di 40–50 dB nelle alte freq. La perdita critica è nelle medie frequenze.</span></div>
-        <div style="display:flex;gap:10px;align-items:flex-start;padding-bottom:8px;border-bottom:1px solid #334155"><span style="color:#16a34a;font-size:12px;font-weight:700;min-width:80px">Friulano</span><span style="color:#94a3b8;font-size:12px">Come l'italiano, ma più vulnerabile alle alte freq. per fricative finali. Paziente friulanofono ha più difficoltà con perdita acuta.</span></div>
-        <div style="display:flex;gap:10px;align-items:flex-start;padding-bottom:8px;border-bottom:1px solid #334155"><span style="color:#ef4444;font-size:12px;font-weight:700;min-width:80px">Inglese</span><span style="color:#94a3b8;font-size:12px">SII crolla rapidamente con perdita acuta. /s θ f/ portano informazioni fonemiche essenziali — irrecuperabili senza amplificazione.</span></div>
-        <div style="display:flex;gap:10px;align-items:flex-start"><span style="color:#f59e0b;font-size:12px;font-weight:700;min-width:80px">Sloveno</span><span style="color:#94a3b8;font-size:12px">Le 4 sibilanti /s z ʃ ʒ/ sono fonemicamente contrastive — la perdita acuta confonde coppie minime fondamentali.</span></div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<script>
-const tabs = document.querySelectorAll('.tab');
-const panels = document.querySelectorAll('.panel');
-function showTab(i) {
-  tabs.forEach((t,j) => t.classList.toggle('active', i===j));
-  panels.forEach((p,j) => p.classList.toggle('active', i===j));
-}
-
-// Chart
-const ctx = document.getElementById('ltasChart').getContext('2d');
-new Chart(ctx, {
-  type:'line',
-  data:{
-    labels:['125 Hz','250 Hz','500 Hz','1 kHz','1.5 kHz','2 kHz','3 kHz','4 kHz','6 kHz','8 kHz'],
-    datasets:[
-      {label:'Italiano', data:[-28,-18,-8,-12,-16,-18,-22,-26,-32,-38], borderColor:'#3b82f6', backgroundColor:'transparent', borderWidth:2.5, pointRadius:3},
-      {label:'Friulano', data:[-27,-17,-9,-14,-17,-20,-24,-27,-30,-35], borderColor:'#16a34a', backgroundColor:'transparent', borderWidth:2.5, pointRadius:3, borderDash:[6,2]},
-      {label:'Inglese',  data:[-30,-20,-10,-13,-15,-16,-18,-20,-22,-26], borderColor:'#ef4444', backgroundColor:'transparent', borderWidth:2.5, pointRadius:3},
-      {label:'Sloveno',  data:[-26,-17,-9,-13,-15,-17,-19,-21,-24,-30], borderColor:'#f59e0b', backgroundColor:'transparent', borderWidth:2.5, pointRadius:3, borderDash:[3,3]},
-    ]
-  },
-  options:{
-    responsive:true,
-    scales:{
-      x:{ticks:{color:'#94a3b8',font:{size:11}}, grid:{color:'#334155'}},
-      y:{min:-45,max:0, ticks:{color:'#94a3b8',font:{size:11},callback:v=>v+' dB'}, grid:{color:'#334155'}}
-    },
-    plugins:{
-      legend:{labels:{color:'#94a3b8',font:{size:12}}},
-      tooltip:{backgroundColor:'#1e293b',titleColor:'#94a3b8',bodyColor:'#e2e8f0',borderColor:'#334155',borderWidth:1}
-    }
-  }
-});
-
-// Lingua profiles
 const lingue = [
-  {nome:'🇮🇹 Italiano', colore:'#3b82f6',
-   vocali:'5 vocali pure /a e ɛ o u/ — sistema compatto, F1/F2 stabili, nessuna riduzione vocalica',
-   consonanti:"Geminate (es. 'notte', 'palla') — energia prolungata nelle medie frequenze",
-   spettro:'Picco ~500 Hz, declino graduale sopra 2 kHz. Energia concentrata tra 300–2000 Hz.',
-   sibilanti:'/s/ presente ma meno acuta (~5500 Hz); assenza di /ʃ ʒ/ come fonemi primari standard',
-   fricative:'/f v/; nessuna /θ ð/ inglese. Sistema fricativo moderato.',
-   ritmo:'Isoritmico sillabico: sillabe uniformi, molta energia stabile nelle medie-basse freq.',
-   tono:'Non tonico — accento dinamico, senza opposizioni tonali',
-   sii:'Buon SII anche con udito fino a ~2000 Hz — vocali robuste e ridondanti',
-   note:'La perdita nelle medie frequenze è la più critica per l\'intelligibilità'},
-  {nome:'🏔 Friulano', colore:'#16a34a',
-   vocali:'7 vocali /a ɛ e i ɔ o u/ + vocali lunghe — spazio vocalico più ampio dell\'italiano',
-   consonanti:'Consonanti finali sorde (devoicing): /grand/ → [grant]. Affricate /ts dz/ distintive.',
-   spettro:'Simile all\'italiano nelle basse freq.; energia maggiore a 5–8 kHz per fricative finali.',
-   sibilanti:'/s/ e /z/ distinte; /ts dz/ — energia tra 4000–7000 Hz più rilevante che in italiano',
-   fricative:'Fricative sorde finali più marcate — rilevanza clinica nelle alte freq.',
-   ritmo:'Isoritmico sillabico come italiano, con allungamento vocalico contrastivo',
-   tono:'Non tonico — ma la lunghezza vocalica ha valore distintivo',
-   sii:'Leggermente più dipendente dalle alte freq. rispetto all\'italiano per le fricative finali',
-   note:'Caratteristiche simili all\'italiano, ma con maggiore peso delle alte frequenze'},
-  {nome:'🇬🇧 Inglese', colore:'#ef4444',
-   vocali:'12–20 vocali/dittonghi — forte riduzione vocalica con /ə/ (schwa) in sillabe atone',
-   consonanti:'/θ ð/ (th) — energia 5000–8000 Hz; /r/ retroflesso abbassa F3',
-   spettro:'Energia distribuita su ampio spettro. Declino meno ripido sopra 2 kHz.',
-   sibilanti:'/s/ molto acuta (~6000–8000 Hz); /ʃ/ ~3000–5000 Hz; entrambe fonemicamente critiche',
-   fricative:'Ricco sistema: /f θ s ʃ h/ — componente essenziale per l\'intelligibilità alle alte freq.',
-   ritmo:'Isoritmico accentuale: sillabe atone compresse, energie variabili, /ə/ molto frequente',
-   tono:'Non tonico — accento dinamico con variazioni di pitch espressive',
-   sii:'Molto dipendente dalle alte freq. (2000–6000 Hz) — perdita acuta impatta criticamente',
-   note:'Perdita uditiva acuta = calo drastico dell\'intelligibilità per fricative e dittonghi'},
-  {nome:'🇸🇮 Sloveno', colore:'#f59e0b',
-   vocali:'8 vocali /i e ɛ a ɔ o u ə/ — sistema ricco con schwa /ə/ e distinzioni di lunghezza',
-   consonanti:'21 consonanti: /s z ʃ ʒ tʃ dʒ/ — sistema fricativo molto ricco; assimilazione di sonorità',
-   spettro:'Simile all\'italiano nelle basse; ma alta energia a 3–6 kHz per /ʃ ʒ tʃ dʒ/.',
-   sibilanti:'/s z ʃ ʒ/ tutti distinti — 4 sibilanti con energie tra 3500–7000 Hz',
-   fricative:'Sistema molto articolato: /f v s z ʃ ʒ x/ — tra i più ricchi tra le lingue slave',
-   ritmo:'Isoritmico sillabico tendenziale, con accento libero e distinzioni tonemiche in alcune varietà',
-   tono:'Parzialmente tonico: varietà standard non tonica, ma varietà dialettali conservano toni',
-   sii:'Alta dipendenza dalle medie-alte frequenze per distinguere /s/ vs /ʃ/, /z/ vs /ʒ/',
-   note:'Il ricco sistema di sibilanti rende lo sloveno più simile all\'inglese nelle alte freq.'},
+  {
+    id: "italiano",
+    nome: "🇮🇹 Italiano",
+    colore: "#3b82f6",
+    vocali: "5 vocali pure /a e ɛ o u/ — sistema compatto, F1/F2 stabili, nessuna riduzione vocalica",
+    consonanti: "Geminate (es. 'notte', 'palla') — energia prolungata nelle medie frequenze",
+    spettro: "Picco ~500 Hz, declino graduale sopra 2 kHz. Energia concentrata tra 300–2000 Hz.",
+    sibilanti: "/s/ presente ma meno acuta (~5500 Hz); assenza di /ʃ ʒ/ come fonemi primari standard",
+    fricative: "/f v/; nessuna /θ ð/ inglese. Sistema fricativo moderato.",
+    ritmo: "Isoritmico sillabico: sillabe uniformi, molta energia stabile nelle medie-basse freq.",
+    tono: "Non tonico — accento dinamico, senza opposizioni tonali",
+    sii: "Buon SII anche con udito fino a ~2000 Hz — vocali robuste e ridondanti",
+    note: "La perdita nelle medie frequenze è la più critica per l'intelligibilità",
+  },
+  {
+    id: "friulano",
+    nome: "🏔 Friulano",
+    colore: "#16a34a",
+    vocali: "7 vocali /a ɛ e i ɔ o u/ + vocali lunghe — spazio vocalico più ampio dell'italiano",
+    consonanti: "Consonanti finali sorde (devoicing): /grand/ → [grant]. Affricate /ts dz/ distintive.",
+    spettro: "Simile all'italiano nelle basse freq.; energia maggiore a 5–8 kHz per fricative finali.",
+    sibilanti: "/s/ e /z/ distinte; /ts dz/ — energia tra 4000–7000 Hz più rilevante che in italiano",
+    fricative: "Fricative sorde finali più marcate — rilevanza clinica nelle alte freq.",
+    ritmo: "Isoritmico sillabico come italiano, con allungamento vocalico contrastivo",
+    tono: "Non tonico — ma la lunghezza vocalica ha valore distintivo",
+    sii: "Leggermente più dipendente dalle alte freq. rispetto all'italiano per le fricative finali",
+    note: "Caratteristiche simili all'italiano, ma con maggiore peso delle alte frequenze",
+  },
+  {
+    id: "inglese",
+    nome: "🇬🇧 Inglese",
+    colore: "#ef4444",
+    vocali: "12–20 vocali/dittonghi — forte riduzione vocalica con /ə/ (schwa) in sillabe atone",
+    consonanti: "/θ ð/ (th) — energia 5000–8000 Hz; /r/ retroflesso abbassa F3",
+    spettro: "Energia distribuita su ampio spettro. Declino meno ripido sopra 2 kHz.",
+    sibilanti: "/s/ molto acuta (~6000–8000 Hz); /ʃ/ ~3000–5000 Hz; entrambe fonemicamente critiche",
+    fricative: "Ricco sistema: /f θ s ʃ h/ — componente essenziale per l'intelligibilità alle alte freq.",
+    ritmo: "Isoritmico accentuale: sillabe atone compresse, energie variabili, /ə/ molto frequente",
+    tono: "Non tonico — accento dinamico con variazioni di pitch espressive",
+    sii: "Molto dipendente dalle alte freq. (2000–6000 Hz) — perdita acuta impatta criticamente",
+    note: "Perdita uditiva acuta = calo drastico dell'intelligibilità per fricative e dittonghi",
+  },
+  {
+    id: "sloveno",
+    nome: "🇸🇮 Sloveno",
+    colore: "#f59e0b",
+    vocali: "8 vocali /i e ɛ a ɔ o u ə/ — sistema ricco con schwa /ə/ e distinzioni di lunghezza",
+    consonanti: "21 consonanti: /s z ʃ ʒ tʃ dʒ/ — sistema fricativo molto ricco; assimilazione di sonorità",
+    spettro: "Simile all'italiano nelle basse; ma alta energia a 3–6 kHz per /ʃ ʒ tʃ dʒ/.",
+    sibilanti: "/s z ʃ ʒ/ tutti distinti — 4 sibilanti con energie tra 3500–7000 Hz",
+    fricative: "Sistema molto articolato: /f v s z ʃ ʒ x/ — tra i più ricchi tra le lingue slave",
+    ritmo: "Isoritmico sillabico tendenziale, con accento libero e distinzioni tonemiche in alcune varietà",
+    tono: "Parzialmente tonico: varietà standard non tonica, ma varietà dialettali conservano toni (acuto/circonflesso)",
+    sii: "Alta dipendenza dalle medie-alte frequenze per distinguere /s/ vs /ʃ/, /z/ vs /ʒ/",
+    note: "Il ricco sistema di sibilanti rende lo sloveno più simile all'inglese nelle alte freq.",
+  },
 ];
 
-let activeLng = 0;
-const lngTabsEl = document.getElementById('lngTabs');
-const lngDetailEl = document.getElementById('lngDetail');
-const fields = [
-  ['🎵 Vocali','vocali'],['🔊 Consonanti','consonanti'],['📈 Distribuzione spettrale','spettro'],
-  ['〰 Sibilanti','sibilanti'],['💨 Fricative','fricative'],['⏱ Ritmo','ritmo'],
-  ['🎼 Tono/accento','tono'],['👂 Impatto su SII','sii']
+const zone = [
+  { range: "125–500 Hz",  label: "Zona bassa",   color: "#1d4ed8", desc: "Energia fondamentale, nasali, vocali posteriori /a o u/" },
+  { range: "500–2000 Hz", label: "Zona media",   color: "#15803d", desc: "F1–F2, intelligibilità del parlato, vocali anteriori /e i/" },
+  { range: "2000–4000 Hz",label: "Zona alta",    color: "#b45309", desc: "F3, /s ʃ/, affricate /tʃ/, chiarezza articolatoria" },
+  { range: "4000–8000 Hz",label: "Zona acuta",   color: "#b91c1c", desc: "/f θ s/ acute, dettagli fricativi fini, discriminazione sibilanti" },
 ];
 
-function renderLng(i) {
-  activeLng = i;
-  document.querySelectorAll('.lng-tab').forEach((b,j) => {
-    b.style.borderColor = j===i ? lingue[j].colore : 'transparent';
-    b.style.color = j===i ? lingue[j].colore : '#94a3b8';
-    b.style.background = j===i ? lingue[j].colore+'22' : '#1e293b';
-  });
-  const l = lingue[i];
-  lngDetailEl.innerHTML = `
-    <div class="detail-card" style="border-top:3px solid ${l.colore}">
-      <h2 style="color:#f1f5f9;font-size:16px;font-weight:700;margin-bottom:14px">${l.nome}</h2>
-      ${fields.map(([k,v]) => `
-        <div class="detail-row">
-          <span class="detail-key">${k}</span>
-          <span class="detail-val">${l[v]}</span>
-        </div>`).join('')}
-      <div class="note-box" style="background:${l.colore}18;border-left:3px solid ${l.colore}">
-        <div class="note-title" style="color:${l.colore}">📌 Nota clinica</div>
-        <div class="note-text">${l.note}</div>
+const impatto = [
+  {
+    titolo: "Perdita basse frequenze (125–500 Hz)",
+    color: "#3b82f6",
+    rows: [
+      { lingua: "🇮🇹 Italiano", c: "#3b82f6", testo: "Perde energia fondamentale e vocali /a o u/ — impatto moderato, F2 spesso conservato" },
+      { lingua: "🏔 Friulano",  c: "#16a34a", testo: "Simile all'italiano; perde allungamento vocalico contrastivo" },
+      { lingua: "🇬🇧 Inglese",  c: "#ef4444", testo: "Colpisce ritmo accentuale; schwa e vocali ridotte ulteriormente compromesse" },
+      { lingua: "🇸🇮 Sloveno",  c: "#f59e0b", testo: "Perde energia fondamentale e schwa /ə/; impatto su vocali brevi non accentate" },
+    ],
+  },
+  {
+    titolo: "Perdita medie frequenze (500–2000 Hz)",
+    color: "#f59e0b",
+    rows: [
+      { lingua: "🇮🇹 Italiano", c: "#3b82f6", testo: "Impatto elevato: zona critica. Sistema vocalico italiano qui concentrato." },
+      { lingua: "🏔 Friulano",  c: "#16a34a", testo: "Impatto elevato: F1/F2 delle 7 vocali e geminate colpite" },
+      { lingua: "🇬🇧 Inglese",  c: "#ef4444", testo: "Impatto elevato: dittonghi e vowel reduction difficili da discriminare" },
+      { lingua: "🇸🇮 Sloveno",  c: "#f59e0b", testo: "Impatto molto elevato: le 8 vocali si distinguono principalmente in questa zona" },
+    ],
+  },
+  {
+    titolo: "Perdita alte frequenze (2000–8000 Hz)",
+    color: "#ef4444",
+    rows: [
+      { lingua: "🇮🇹 Italiano", c: "#3b82f6", testo: "Impatto moderato: sopravvive bene fino a 2000 Hz — sistema vocalico robusto" },
+      { lingua: "🏔 Friulano",  c: "#16a34a", testo: "Impatto più rilevante che in italiano: fricative finali sorde /s ts/ colpite" },
+      { lingua: "🇬🇧 Inglese",  c: "#ef4444", testo: "Impatto critico: /s ʃ θ f/ inudibili — calo drastico dell'intelligibilità" },
+      { lingua: "🇸🇮 Sloveno",  c: "#f59e0b", testo: "Impatto molto rilevante: /s z ʃ ʒ tʃ dʒ/ tutti a rischio — simile all'inglese" },
+    ],
+  },
+];
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 8, padding: "10px 14px" }}>
+      <p style={{ color: "#94a3b8", marginBottom: 6, fontWeight: 600 }}>{label}</p>
+      {payload.map((p) => (
+        <p key={p.name} style={{ color: p.color, margin: "2px 0" }}>
+          {p.name}: <strong>{p.value} dB</strong>
+        </p>
+      ))}
+    </div>
+  );
+};
+
+export default function App() {
+  const [tab, setTab] = useState(0);
+  const [lingua, setLingua] = useState(0);
+  const tabs = ["📊 Spettro LTAS", "🔬 Profilo per lingua", "🦻 Impatto audiologico"];
+
+  return (
+    <div style={{ background: "#0f172a", minHeight: "100vh", color: "#e2e8f0", fontFamily: "'Segoe UI', sans-serif", padding: "24px 16px" }}>
+      <div style={{ maxWidth: 860, margin: "0 auto" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 700, color: "#f1f5f9", marginBottom: 4 }}>
+          Analisi frequenziale del parlato
+        </h1>
+        <p style={{ color: "#64748b", fontSize: 13, marginBottom: 24 }}>
+          Confronto spettrale: Italiano · Friulano · Inglese · Sloveno
+        </p>
+
+        {/* Tabs */}
+        <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+          {tabs.map((t, i) => (
+            <button key={i} onClick={() => setTab(i)} style={{
+              padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer",
+              fontSize: 13, fontWeight: 600,
+              background: tab === i ? "#3b82f6" : "#1e293b",
+              color: tab === i ? "#fff" : "#94a3b8",
+            }}>
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {/* TAB 0 — Grafico LTAS */}
+        {tab === 0 && (
+          <div>
+            <div style={{ background: "#1e293b", borderRadius: 12, padding: "20px 10px 10px", marginBottom: 16 }}>
+              <p style={{ color: "#64748b", fontSize: 12, marginBottom: 12, paddingLeft: 10 }}>
+                Long-Term Average Speech Spectrum (LTAS) — Livello relativo in dB (0 = picco di riferimento a ~500 Hz)
+              </p>
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="label" tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                  <YAxis domain={[-45, 0]} tickFormatter={v => `${v} dB`} tick={{ fill: "#94a3b8", fontSize: 11 }} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend wrapperStyle={{ color: "#94a3b8", fontSize: 12, paddingTop: 10 }} />
+                  <ReferenceLine y={-25} stroke="#475569" strokeDasharray="4 2" />
+                  <Line type="monotone" dataKey="italiano" name="Italiano" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="friulano" name="Friulano" stroke="#16a34a" strokeWidth={2.5} dot={{ r: 3 }} strokeDasharray="6 2" />
+                  <Line type="monotone" dataKey="inglese"  name="Inglese"  stroke="#ef4444" strokeWidth={2.5} dot={{ r: 3 }} />
+                  <Line type="monotone" dataKey="sloveno"  name="Sloveno"  stroke="#f59e0b" strokeWidth={2.5} dot={{ r: 3 }} strokeDasharray="3 3" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
+              {zone.map((z, i) => (
+                <div key={i} style={{ background: "#1e293b", borderRadius: 10, padding: "12px 14px", borderLeft: `3px solid ${z.color}` }}>
+                  <p style={{ color: z.color, fontSize: 11, fontWeight: 700, marginBottom: 3 }}>{z.range}</p>
+                  <p style={{ color: "#f1f5f9", fontSize: 13, fontWeight: 600, marginBottom: 3 }}>{z.label}</p>
+                  <p style={{ color: "#94a3b8", fontSize: 12 }}>{z.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Legenda differenze chiave */}
+            <div style={{ background: "#1e293b", borderRadius: 10, padding: "14px", borderLeft: "3px solid #8b5cf6" }}>
+              <p style={{ color: "#a78bfa", fontSize: 12, fontWeight: 700, marginBottom: 8 }}>📌 Differenze chiave alle alte frequenze</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {[
+                  { c: "#3b82f6", t: "Italiano: declino più rapido sopra 2 kHz — lingua 'vocalica'" },
+                  { c: "#16a34a", t: "Friulano: più energia a 6–8 kHz rispetto all'italiano per fricative finali" },
+                  { c: "#ef4444", t: "Inglese: curva più piatta sopra 2 kHz — ricco sistema fricativo" },
+                  { c: "#f59e0b", t: "Sloveno: posizione intermedia tra italiano e inglese — 4 sibilanti distinte" },
+                ].map((row, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 2, background: row.c, marginTop: 2, flexShrink: 0 }} />
+                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{row.t}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ background: "#1e293b", borderRadius: 10, padding: "12px 14px", marginTop: 10, borderLeft: "3px solid #475569" }}>
+              <p style={{ color: "#64748b", fontSize: 11, fontWeight: 700, marginBottom: 3 }}>⚠ Nota metodologica</p>
+              <p style={{ color: "#64748b", fontSize: 11 }}>
+                LTAS italiano/inglese: Byrne et al. 1994 (NAL Sydney). Sloveno: Petek, Šuštaršič & Komar 1996; Jurgec 2006.
+                Friulano: stimato per estrapolazione (Heinemann & Melchior 2015; Finco 2009). Valori normalizzati a 0 dB = picco 500 Hz.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 1 — Profilo per lingua */}
+        {tab === 1 && (
+          <div>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
+              {lingue.map((l, i) => (
+                <button key={i} onClick={() => setLingua(i)} style={{
+                  padding: "7px 13px", borderRadius: 8, border: `2px solid ${lingua === i ? l.colore : "transparent"}`,
+                  cursor: "pointer", fontSize: 13, fontWeight: 600,
+                  background: lingua === i ? l.colore + "22" : "#1e293b",
+                  color: lingua === i ? l.colore : "#94a3b8",
+                }}>
+                  {l.nome}
+                </button>
+              ))}
+            </div>
+
+            {(() => {
+              const l = lingue[lingua];
+              return (
+                <div style={{ background: "#1e293b", borderRadius: 12, padding: "18px", borderTop: `3px solid ${l.colore}` }}>
+                  <h2 style={{ color: "#f1f5f9", fontSize: 16, fontWeight: 700, marginBottom: 14 }}>{l.nome}</h2>
+                  <div style={{ display: "grid", gap: 10 }}>
+                    {[
+                      ["🎵 Vocali", l.vocali],
+                      ["🔊 Consonanti", l.consonanti],
+                      ["📈 Distribuzione spettrale", l.spettro],
+                      ["〰 Sibilanti", l.sibilanti],
+                      ["💨 Fricative", l.fricative],
+                      ["⏱ Ritmo", l.ritmo],
+                      ["🎼 Tono/accento", l.tono],
+                      ["👂 Impatto su SII", l.sii],
+                    ].map(([k, v], j) => (
+                      <div key={j} style={{ display: "flex", gap: 12, paddingBottom: 8, borderBottom: "1px solid #334155" }}>
+                        <span style={{ color: "#64748b", fontSize: 12, fontWeight: 600, minWidth: 160, flexShrink: 0 }}>{k}</span>
+                        <span style={{ color: "#cbd5e1", fontSize: 12 }}>{v}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: 14, padding: "10px 12px", background: l.colore + "18", borderRadius: 8, borderLeft: `3px solid ${l.colore}` }}>
+                    <p style={{ color: l.colore, fontSize: 12, fontWeight: 700, marginBottom: 4 }}>📌 Nota clinica</p>
+                    <p style={{ color: "#cbd5e1", fontSize: 12 }}>{l.note}</p>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Tabella comparativa vocali */}
+            <div style={{ background: "#1e293b", borderRadius: 12, padding: "16px", marginTop: 14 }}>
+              <p style={{ color: "#94a3b8", fontSize: 13, fontWeight: 700, marginBottom: 12 }}>📊 Inventario vocalico a confronto</p>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      {["Lingua", "N° vocali", "Vocali lunghe", "Schwa /ə/", "Dittonghi", "Riduzione vocalica"].map(h => (
+                        <th key={h} style={{ color: "#64748b", textAlign: "left", padding: "6px 10px", borderBottom: "1px solid #334155" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { n: "🇮🇹 Italiano",  c: "#3b82f6", v: "5",    l: "No",  s: "No",  d: "No",   r: "No" },
+                      { n: "🏔 Friulano",   c: "#16a34a", v: "7",    l: "Sì",  s: "No",  d: "No",   r: "Minima" },
+                      { n: "🇬🇧 Inglese",   c: "#ef4444", v: "12–20",l: "Sì",  s: "Sì",  d: "Sì",   r: "Forte" },
+                      { n: "🇸🇮 Sloveno",   c: "#f59e0b", v: "8",    l: "Sì*", s: "Sì",  d: "No",   r: "Moderata" },
+                    ].map((row, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid #1e293b" }}>
+                        <td style={{ color: row.c, padding: "7px 10px", fontWeight: 600 }}>{row.n}</td>
+                        <td style={{ color: "#e2e8f0", padding: "7px 10px" }}>{row.v}</td>
+                        <td style={{ color: "#e2e8f0", padding: "7px 10px" }}>{row.l}</td>
+                        <td style={{ color: "#e2e8f0", padding: "7px 10px" }}>{row.s}</td>
+                        <td style={{ color: "#e2e8f0", padding: "7px 10px" }}>{row.d}</td>
+                        <td style={{ color: "#e2e8f0", padding: "7px 10px" }}>{row.r}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p style={{ color: "#475569", fontSize: 11, marginTop: 8 }}>* La lunghezza in sloveno standard è determinata dallo stress più che essere fonologicamente contrastiva in tutte le posizioni</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2 — Impatto audiologico */}
+        {tab === 2 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {impatto.map((sezione, i) => (
+              <div key={i} style={{ background: "#1e293b", borderRadius: 12, padding: "16px", borderLeft: `3px solid ${sezione.color}` }}>
+                <p style={{ color: "#f1f5f9", fontWeight: 700, fontSize: 13, marginBottom: 12 }}>{sezione.titolo}</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {sezione.rows.map((row, j) => (
+                    <div key={j} style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+                      <span style={{ color: row.c, fontSize: 12, fontWeight: 700, minWidth: 90, flexShrink: 0 }}>{row.lingua}</span>
+                      <span style={{ color: "#94a3b8", fontSize: 12 }}>{row.testo}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+
+            {/* Tabella consonanti fricative/sibilanti */}
+            <div style={{ background: "#1e293b", borderRadius: 12, padding: "16px" }}>
+              <p style={{ color: "#94a3b8", fontSize: 13, fontWeight: 700, marginBottom: 12 }}>
+                📊 Fricative e sibilanti — frequenze di picco energetico
+              </p>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                  <thead>
+                    <tr>
+                      {["Fonema", "Italiano", "Friulano", "Inglese", "Sloveno", "Freq. picco (Hz)"].map(h => (
+                        <th key={h} style={{ color: "#64748b", textAlign: "left", padding: "6px 10px", borderBottom: "1px solid #334155" }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { f: "/s/",   it: "✓", fri: "✓", en: "✓", sl: "✓", hz: "5000–8000" },
+                      { f: "/z/",   it: "✓", fri: "✓", en: "✓", sl: "✓", hz: "4000–7000" },
+                      { f: "/ʃ/",   it: "dialettale", fri: "No", en: "✓", sl: "✓", hz: "3000–5000" },
+                      { f: "/ʒ/",   it: "No", fri: "No", en: "✓", sl: "✓", hz: "3000–5000" },
+                      { f: "/tʃ/",  it: "✓", fri: "✓", en: "✓", sl: "✓", hz: "3000–6000" },
+                      { f: "/dʒ/",  it: "✓", fri: "✓", en: "✓", sl: "✓", hz: "3000–5000" },
+                      { f: "/ts/",  it: "✓", fri: "✓", en: "No", sl: "✓", hz: "5000–8000" },
+                      { f: "/f/",   it: "✓", fri: "✓", en: "✓", sl: "✓", hz: "4000–8000" },
+                      { f: "/θ ð/", it: "No", fri: "No", en: "✓", sl: "No", hz: "5000–8000" },
+                      { f: "/x/",   it: "No", fri: "No", en: "No", sl: "✓", hz: "1500–4000" },
+                    ].map((row, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid #0f172a" }}>
+                        <td style={{ color: "#e2e8f0", padding: "6px 10px", fontFamily: "monospace", fontWeight: 700 }}>{row.f}</td>
+                        {[row.it, row.fri, row.en, row.sl].map((v, j) => (
+                          <td key={j} style={{
+                            color: v === "✓" ? "#4ade80" : v === "No" ? "#475569" : "#fbbf24",
+                            padding: "6px 10px"
+                          }}>{v}</td>
+                        ))}
+                        <td style={{ color: "#94a3b8", padding: "6px 10px" }}>{row.hz}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Box SII */}
+            <div style={{ background: "#1e293b", borderRadius: 12, padding: "16px", borderLeft: "3px solid #8b5cf6" }}>
+              <p style={{ color: "#a78bfa", fontSize: 13, fontWeight: 700, marginBottom: 10 }}>🎯 Implicazione clinica — Speech Intelligibility Index (SII)</p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {[
+                  { c: "#3b82f6", n: "Italiano", t: "SII relativamente robusto fino a perdite di 40–50 dB nelle alte freq. Il sistema vocalico puro compensa. La perdita critica è nelle medie frequenze (500–2000 Hz)." },
+                  { c: "#16a34a", n: "Friulano", t: "Come l'italiano, ma più vulnerabile alle alte freq. per fricative finali. Paziente friulanofono con perdita acuta ha più difficoltà che un italofono." },
+                  { c: "#ef4444", n: "Inglese",  t: "SII crolla rapidamente con perdita acuta. /s θ f/ portano informazioni fonemiche essenziali — irrecuperabili senza amplificazione adeguata." },
+                  { c: "#f59e0b", n: "Sloveno",  t: "Posizione intermedia critica: le 4 sibilanti /s z ʃ ʒ/ sono fonemicamente contrastive — la perdita acuta confonde coppie minime fondamentali." },
+                ].map((row, i) => (
+                  <div key={i} style={{ display: "flex", gap: 10, alignItems: "flex-start", paddingBottom: 8, borderBottom: "1px solid #334155" }}>
+                    <span style={{ color: row.c, fontSize: 12, fontWeight: 700, minWidth: 80, flexShrink: 0 }}>{row.n}</span>
+                    <span style={{ color: "#94a3b8", fontSize: 12 }}>{row.t}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-    </div>`;
+    </div>
+  );
 }
-
-lingue.forEach((l,i) => {
-  const btn = document.createElement('button');
-  btn.className = 'lng-tab';
-  btn.textContent = l.nome;
-  btn.onclick = () => renderLng(i);
-  lngTabsEl.appendChild(btn);
-});
-renderLng(0);
-</script>
-</body>
-</html>
