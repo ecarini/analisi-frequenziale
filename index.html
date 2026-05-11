@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Analisi frequenziale del parlato</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0f172a; font-family: 'Segoe UI', sans-serif; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState } = React;
+    const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
+            ResponsiveContainer, ReferenceLine } = Recharts;
+
+    const data = [
+      { label:"125 Hz",  italiano:-28, friulano:-27, inglese:-30, sloveno:-26 },
+      { label:"250 Hz",  italiano:-18, friulano:-17, inglese:-20, sloveno:-17 },
+      { label:"500 Hz",  italiano:-8,  friulano:-9,  inglese:-10, sloveno:-9  },
+      { label:"1 kHz",   italiano:-12, friulano:-14, inglese:-13, sloveno:-13 },
+      { label:"1.5 kHz", italiano:-16, friulano:-17, inglese:-15, sloveno:-15 },
+      { label:"2 kHz",   italiano:-18, friulano:-20, inglese:-16, sloveno:-17 },
+      { label:"3 kHz",   italiano:-22, friulano:-24, inglese:-18, sloveno:-19 },
+      { label:"4 kHz",   italiano:-26, friulano:-27, inglese:-20, sloveno:-21 },
+      { label:"6 kHz",   italiano:-32, friulano:-30, inglese:-22, sloveno:-24 },
+      { label:"8 kHz",   italiano:-38, friulano:-35, inglese:-26, sloveno:-30 },
+    ];
+
+    const lingue = [
+      { id:"italiano", nome:"🇮🇹 Italiano", colore:"#3b82f6",
+        vocali:"5 vocali pure /a e ɛ o u/ — sistema compatto, F1/F2 stabili, nessuna riduzione vocalica",
+        consonanti:"Geminate (es. 'notte', 'palla') — energia prolungata nelle medie frequenze",
+        spettro:"Picco ~500 Hz, declino graduale sopra 2 kHz. Energia concentrata tra 300–2000 Hz.",
+        sibilanti:"/s/ presente ma meno acuta (~5500 Hz); assenza di /ʃ ʒ/ come fonemi primari standard",
+        fricative:"/f v/; nessuna /θ ð/ inglese. Sistema fricativo moderato.",
+        ritmo:"Isoritmico sillabico: sillabe uniformi, molta energia stabile nelle medie-basse freq.",
+        tono:"Non tonico — accento dinamico, senza opposizioni tonali",
+        sii:"Buon SII anche con udito fino a ~2000 Hz — vocali robuste e ridondanti",
+        note:"La perdita nelle medie frequenze è la più critica per l'intelligibilità" },
+      { id:"friulano", nome:"🏔 Friulano", colore:"#16a34a",
+        vocali:"7 vocali /a ɛ e i ɔ o u/ + vocali lunghe — spazio vocalico più ampio dell'italiano",
+        consonanti:"Consonanti finali sorde (devoicing): /grand/ → [grant]. Affricate /ts dz/ distintive.",
+        spettro:"Simile all'italiano nelle basse freq.; energia maggiore a 5–8 kHz per fricative finali.",
+        sibilanti:"/s/ e /z/ distinte; /ts dz/ — energia tra 4000–7000 Hz più rilevante che in italiano",
+        fricative:"Fricative sorde finali più marcate — rilevanza clinica nelle alte freq.",
+        ritmo:"Isoritmico sillabico come italiano, con allungamento vocalico contrastivo",
+        tono:"Non tonico — ma la lunghezza vocalica ha valore distintivo",
+        sii:"Leggermente più dipendente dalle alte freq. rispetto all'italiano per le fricative finali",
+        note:"Caratteristiche simili all'italiano, ma con maggiore peso delle alte frequenze" },
+      { id:"inglese", nome:"🇬🇧 Inglese", colore:"#ef4444",
+        vocali:"12–20 vocali/dittonghi — forte riduzione vocalica con /ə/ (schwa) in sillabe atone",
+        consonanti:"/θ ð/ (th) — energia 5000–8000 Hz; /r/ retroflesso abbassa F3",
+        spettro:"Energia distribuita su ampio spettro. Declino meno ripido sopra 2 kHz.",
+        sibilanti:"/s/ molto acuta (~6000–8000 Hz); /ʃ/ ~3000–5000 Hz; entrambe fonemicamente critiche",
+        fricative:"Ricco sistema: /f θ s ʃ h/ — componente essenziale per l'intelligibilità alle alte freq.",
+        ritmo:"Isoritmico accentuale: sillabe atone compresse, energie variabili, /ə/ molto frequente",
+        tono:"Non tonico — accento dinamico con variazioni di pitch espressive",
+        sii:"Molto dipendente dalle alte freq. (2000–6000 Hz) — perdita acuta impatta criticamente",
+        note:"Perdita uditiva acuta = calo drastico dell'intelligibilità per fricative e dittonghi" },
+      { id:"sloveno", nome:"🇸🇮 Sloveno", colore:"#f59e0b",
+        vocali:"8 vocali /i e ɛ a ɔ o u ə/ — sistema ricco con schwa /ə/ e distinzioni di lunghezza",
+        consonanti:"21 consonanti: /s z ʃ ʒ tʃ dʒ/ — sistema fricativo molto ricco; assimilazione di sonorità",
+        spettro:"Simile all'italiano nelle basse; ma alta energia a 3–6 kHz per /ʃ ʒ tʃ dʒ/.",
+        sibilanti:"/s z ʃ ʒ/ tutti distinti — 4 sibilanti con energie tra 3500–7000 Hz",
+        fricative:"Sistema molto articolato: /f v s z ʃ ʒ x/ — tra i più ricchi tra le lingue slave",
+        ritmo:"Isoritmico sillabico tendenziale, con accento libero e distinzioni tonemiche in alcune varietà",
+        tono:"Parzialmente tonico: varietà standard non tonica, ma varietà dialettali conservano toni",
+        sii:"Alta dipendenza dalle medie-alte frequenze per distinguere /s/ vs /ʃ/, /z/ vs /ʒ/",
+        note:"Il ricco sistema di sibilanti rende lo sloveno più simile all'inglese nelle alte freq." },
+    ];
+
+    const zone = [
+      { range:"125–500 Hz",   label:"Zona bassa",  color:"#1d4ed8", desc:"Energia fondamentale, nasali, vocali posteriori /a o u/" },
+      { range:"500–2000 Hz",  label:"Zona media",  color:"#15803d", desc:"F1–F2, intelligibilità del parlato, vocali anteriori /e i/" },
+      { range:"2000–4000 Hz", label:"Zona alta",   color:"#b45309", desc:"F3, /s ʃ/, affricate /tʃ/, chiarezza articolatoria" },
+      { range:"4000–8000 Hz", label:"Zona acuta",  color:"#b91c1c", desc:"/f θ s/ acute, dettagli fricativi fini, discriminazione sibilanti" },
+    ];
+
+    const impatto = [
+      { titolo:"Perdita basse frequenze (125–500 Hz)", color:"#3b82f6", rows:[
+        { lingua:"🇮🇹 Italiano", c:"#3b82f6", testo:"Perde energia fondamentale e vocali /a o u/ — impatto moderato, F2 spesso conservato" },
+        { lingua:"🏔 Friulano",  c:"#16a34a", testo:"Simile all'italiano; perde allungamento vocalico contrastivo" },
+        { lingua:"🇬🇧 Inglese",  c:"#ef4444", testo:"Colpisce ritmo accentuale; schwa e vocali ridotte ulteriormente compromesse" },
+        { lingua:"🇸🇮 Sloveno",  c:"#f59e0b", testo:"Perde energia fondamentale e schwa /ə/; impatto su vocali brevi non accentate" },
+      ]},
+      { titolo:"Perdita medie frequenze (500–2000 Hz)", color:"#f59e0b", rows:[
+        { lingua:"🇮🇹 Italiano", c:"#3b82f6", testo:"Impatto elevato: zona critica. Sistema vocalico italiano qui concentrato." },
+        { lingua:"🏔 Friulano",  c:"#16a34a", testo:"Impatto elevato: F1/F2 delle 7 vocali e geminate colpite" },
+        { lingua:"🇬🇧 Inglese",  c:"#ef4444", testo:"Impatto elevato: dittonghi e vowel reduction difficili da discriminare" },
+        { lingua:"🇸🇮 Sloveno",  c:"#f59e0b", testo:"Impatto molto elevato: le 8 vocali si distinguono principalmente in questa zona" },
+      ]},
+      { titolo:"Perdita alte frequenze (2000–8000 Hz)", color:"#ef4444", rows:[
+        { lingua:"🇮🇹 Italiano", c:"#3b82f6", testo:"Impatto moderato: sopravvive bene fino a 2000 Hz — sistema vocalico robusto" },
+        { lingua:"🏔 Friulano",  c:"#16a34a", testo:"Impatto più rilevante che in italiano: fricative finali sorde /s ts/ colpite" },
+        { lingua:"🇬🇧 Inglese",  c:"#ef4444", testo:"Impatto critico: /s ʃ θ f/ inudibili — calo drastico dell'intelligibilità" },
+        { lingua:"🇸🇮 Sloveno",  c:"#f59e0b", testo:"Impatto molto rilevante: /s z ʃ ʒ tʃ dʒ/ tutti a rischio — simile all'inglese" },
+      ]},
+    ];
+
+    const CustomTooltip = ({ active, payload, label }) => {
+      if (!active || !payload?.length) return null;
+      return (
+        <div style={{ background:"#1e293b", border:"1px solid #334155", borderRadius:8, padding:"10px 14px" }}>
+          <p style={{ color:"#94a3b8", marginBottom:6, fontWeight:600 }}>{label}</p>
+          {payload.map(p => (
+            <p key={p.name} style={{ color:p.color, margin:"2px 0" }}>
+              {p.name}: <strong>{p.value} dB</strong>
+            </p>
+          ))}
+        </div>
+      );
+    };
+
+    function App() {
+      const [tab, setTab] = useState(0);
+      const [lingua, setLingua] = useState(0);
+      const tabs = ["📊 Spettro LTAS","🔬 Profilo per lingua","🦻 Impatto audiologico"];
+
+      return (
+        <div style={{ background:"#0f172a", minHeight:"100vh", color:"#e2e8f0", fontFamily:"'Segoe UI',sans-serif", padding:"24px 16px" }}>
+          <div style={{ maxWidth:860, margin:"0 auto" }}>
+            <h1 style={{ fontSize:20, fontWeight:700, color:"#f1f5f9", marginBottom:4 }}>Analisi frequenziale del parlato</h1>
+            <p style={{ color:"#64748b", fontSize:13, marginBottom:24 }}>Confronto spettrale: Italiano · Friulano · Inglese · Sloveno</p>
+
+            <div style={{ display:"flex", gap:8, marginBottom:24, flexWrap:"wrap" }}>
+              {tabs.map((t,i) => (
+                <button key={i} onClick={() => setTab(i)} style={{
+                  padding:"8px 14px", borderRadius:8, border:"none", cursor:"pointer",
+                  fontSize:13, fontWeight:600,
+                  background: tab===i ? "#3b82f6" : "#1e293b",
+                  color: tab===i ? "#fff" : "#94a3b8"
+                }}>{t}</button>
+              ))}
+            </div>
+
+            {tab === 0 && (
+              <div>
+                <div style={{ background:"#1e293b", borderRadius:12, padding:"20px 10px 10px", marginBottom:16 }}>
+                  <p style={{ color:"#64748b", fontSize:12, marginBottom:12, paddingLeft:10 }}>LTAS — Livello relativo in dB (0 = picco ~500 Hz)</p>
+                  <ResponsiveContainer width="100%" height={320}>
+                    <LineChart data={data} margin={{ top:5, right:20, left:0, bottom:5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                      <XAxis dataKey="label" tick={{ fill:"#94a3b8", fontSize:11 }} />
+                      <YAxis domain={[-45,0]} tickFormatter={v => `${v} dB`} tick={{ fill:"#94a3b8", fontSize:11 }} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ color:"#94a3b8", fontSize:12, paddingTop:10 }} />
+                      <ReferenceLine y={-25} stroke="#475569" strokeDasharray="4 2" />
+                      <Line type="monotone" dataKey="italiano" name="Italiano" stroke="#3b82f6" strokeWidth={2.5} dot={{ r:3 }} />
+                      <Line type="monotone" dataKey="friulano" name="Friulano" stroke="#16a34a" strokeWidth={2.5} dot={{ r:3 }} strokeDasharray="6 2" />
+                      <Line type="monotone" dataKey="inglese"  name="Inglese"  stroke="#ef4444" strokeWidth={2.5} dot={{ r:3 }} />
+                      <Line type="monotone" dataKey="sloveno"  name="Sloveno"  stroke="#f59e0b" strokeWidth={2.5} dot={{ r:3 }} strokeDasharray="3 3" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:10, marginBottom:12 }}>
+                  {zone.map((z,i) => (
+                    <div key={i} style={{ background:"#1e293b", borderRadius:10, padding:"12px 14px", borderLeft:`3px solid ${z.color}` }}>
+                      <p style={{ color:z.color, fontSize:11, fontWeight:700, marginBottom:3 }}>{z.range}</p>
+                      <p style={{ color:"#f1f5f9", fontSize:13, fontWeight:600, marginBottom:3 }}>{z.label}</p>
+                      <p style={{ color:"#94a3b8", fontSize:12 }}>{z.desc}</p>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ background:"#1e293b", borderRadius:10, padding:"14px", borderLeft:"3px solid #8b5cf6" }}>
+                  <p style={{ color:"#a78bfa", fontSize:12, fontWeight:700, marginBottom:8 }}>📌 Differenze chiave alle alte frequenze</p>
+                  {[
+                    { c:"#3b82f6", t:"Italiano: declino più rapido sopra 2 kHz — lingua 'vocalica'" },
+                    { c:"#16a34a", t:"Friulano: più energia a 6–8 kHz rispetto all'italiano per fricative finali" },
+                    { c:"#ef4444", t:"Inglese: curva più piatta sopra 2 kHz — ricco sistema fricativo" },
+                    { c:"#f59e0b", t:"Sloveno: posizione intermedia — 4 sibilanti distinte" },
+                  ].map((row,i) => (
+                    <div key={i} style={{ display:"flex", gap:8, alignItems:"flex-start", marginBottom:4 }}>
+                      <div style={{ width:10, height:10, borderRadius:2, background:row.c, marginTop:2, flexShrink:0 }} />
+                      <span style={{ color:"#94a3b8", fontSize:12 }}>{row.t}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {tab === 1 && (
+              <div>
+                <div style={{ display:"flex", gap:8, marginBottom:16, flexWrap:"wrap" }}>
+                  {lingue.map((l,i) => (
+                    <button key={i} onClick={() => setLingua(i)} style={{
+                      padding:"7px 13px", borderRadius:8, border:`2px solid ${lingua===i ? l.colore : "transparent"}`,
+                      cursor:"pointer", fontSize:13, fontWeight:600,
+                      background: lingua===i ? l.colore+"22" : "#1e293b",
+                      color: lingua===i ? l.colore : "#94a3b8"
+                    }}>{l.nome}</button>
+                  ))}
+                </div>
+                {(() => {
+                  const l = lingue[lingua];
+                  return (
+                    <div style={{ background:"#1e293b", borderRadius:12, padding:"18px", borderTop:`3px solid ${l.colore}` }}>
+                      <h2 style={{ color:"#f1f5f9", fontSize:16, fontWeight:700, marginBottom:14 }}>{l.nome}</h2>
+                      <div style={{ display:"grid", gap:10 }}>
+                        {[
+                          ["🎵 Vocali",l.vocali],["🔊 Consonanti",l.consonanti],
+                          ["📈 Distribuzione spettrale",l.spettro],["〰 Sibilanti",l.sibilanti],
+                          ["💨 Fricative",l.fricative],["⏱ Ritmo",l.ritmo],
+                          ["🎼 Tono/accento",l.tono],["👂 Impatto su SII",l.sii],
+                        ].map(([k,v],j) => (
+                          <div key={j} style={{ display:"flex", gap:12, paddingBottom:8, borderBottom:"1px solid #334155" }}>
+                            <span style={{ color:"#64748b", fontSize:12, fontWeight:600, minWidth:160, flexShrink:0 }}>{k}</span>
+                            <span style={{ color:"#cbd5e1", fontSize:12 }}>{v}</span>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{ marginTop:14, padding:"10px 12px", background:l.colore+"18", borderRadius:8, borderLeft:`3px solid ${l.colore}` }}>
+                        <p style={{ color:l.colore, fontSize:12, fontWeight:700, marginBottom:4 }}>📌 Nota clinica</p>
+                        <p style={{ color:"#cbd5e1", fontSize:12 }}>{l.note}</p>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {tab === 2 && (
+              <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                {impatto.map((s,i) => (
+                  <div key={i} style={{ background:"#1e293b", borderRadius:12, padding:"16px", borderLeft:`3px solid ${s.color}` }}>
+                    <p style={{ color:"#f1f5f9", fontWeight:700, fontSize:13, marginBottom:12 }}>{s.titolo}</p>
+                    {s.rows.map((row,j) => (
+                      <div key={j} style={{ display:"flex", gap:10, alignItems:"flex-start", marginBottom:6 }}>
+                        <span style={{ color:row.c, fontSize:12, fontWeight:700, minWidth:90, flexShrink:0 }}>{row.lingua}</span>
+                        <span style={{ color:"#94a3b8", fontSize:12 }}>{row.testo}</span>
+                      </div>
+                    ))}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>
